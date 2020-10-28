@@ -1,0 +1,92 @@
+<!--
+    The purpose of this snippet is demonstrate a couple of ways to determine how long policy processing is taking inside an
+    APIM service Operations.
+
+    This sample demonstrates how to use DateTime.UtcNow to
+-->
+<policies>
+    <inbound>
+        <base />
+        <!-- Set at the beginning of the policy -->
+        <set-variable name="InboundStartTime" value="@(DateTime.UtcNow.ToString("MM/dd/yyyy hh:mm:ss.fff tt"))" />
+        
+        <!-- Set at the end of the policy -->
+        <set-variable name="InboundEndTime" value="@(DateTime.UtcNow.ToString("MM/dd/yyyy hh:mm:ss.fff tt"))" />
+
+        <!-- context.Elapsed time can also be used to determine how long an inbound policy has ran
+            There is no need for both UtcNow and Elapsed to be used.  The sample demonstrates multiple
+            options.  -->
+        <set-variable name="InboundElapsedTime" value="@(context.Elapsed)" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <!-- Set at the beginning of the policy -->
+        <set-variable name="OutboundStartTime" value="@(DateTime.UtcNow.ToString("MM/dd/yyyy hh:mm:ss.fff tt"))" />
+
+        <!-- Set at the beginning of the policy -->
+        <set-variable name="OutboundEndTime" value="@(DateTime.UtcNow.ToString("MM/dd/yyyy hh:mm:ss.fff tt"))" />
+        
+        <!-- context.Elapsed time can also be used to determine how long an inbound policy has ran
+            There is no need for both UtcNow and Elapsed to be used.  The sample demonstrates multiple
+            options.  -->
+        <set-variable name="OutboundElapsedTime" value="@(context.Elapsed)" />
+
+        <!-- This code demonstrates how to gather all values, format them, do calcuations and
+            generate a string to for logging. -->
+        <set-variable name="ApimTraceInsights" value="@{
+           string _inboundStartTime = context.Variables.GetValueOrDefault<string>("InboundStartTime");
+            string _inboundEndTime = context.Variables.GetValueOrDefault<string>("InboundEndTime");
+            TimeSpan _inboundElapsedTime = context.Variables.GetValueOrDefault<TimeSpan>("InboundElapsedTime");
+
+            string _outboundStartTime = context.Variables.GetValueOrDefault<string>("OutboundStartTime");
+            string _outboundEndTime = context.Variables.GetValueOrDefault<string>("OutboundEndTime");
+            TimeSpan _outboundElapsedTime = context.Variables.GetValueOrDefault<TimeSpan>("OutboundElapsedTime");
+
+                StringBuilder _sb = new StringBuilder();
+
+                //string _ret = string.Format("");
+                TimeSpan _ts = DateTime.Parse(_inboundEndTime) - DateTime.Parse(_inboundStartTime);
+
+                _sb.AppendLine(string.Format("Inbound start time: {0}", _inboundStartTime));
+                _sb.AppendLine(string.Format("Inbound stop time: {0}", _inboundEndTime));
+                _sb.AppendLine(string.Format("Total Inbound Time: {0}", _ts.TotalMilliseconds));
+                _sb.AppendLine(string.Format("context.Elapsed Time: {0}", _inboundElapsedTime.TotalMilliseconds / 1000));
+
+                
+                _ts = DateTime.Parse(_outboundEndTime) - DateTime.Parse(_outboundStartTime);
+
+                _sb.AppendLine(string.Format("\rOutbound start time: {0}", _outboundStartTime));
+                _sb.AppendLine(string.Format("Outbound stop time: {0}", _outboundEndTime));
+                _sb.AppendLine(string.Format("Total Outbound Time: {0}", _ts.TotalMilliseconds));
+                _sb.AppendLine(string.Format("context.Elapsed Time: {0}", _outboundElapsedTime.TotalMilliseconds / 1000));
+
+                return _sb.ToString();
+            }" />
+
+            <!-- Send data to App Insights
+                https://docs.microsoft.com/en-us/azure/api-management/api-management-howto-app-insights
+            -->
+        <trace source="@(context.Api.Name)" severity="information">
+            <message>@{
+                return context.Variables.GetValueOrDefault<string>("ApimTraceInsights");
+                             
+            }</message>
+            <metadata name="Operation Name" value="@(context.Operation.Name)" />
+        </trace>
+        <!-- Sample code for Sending data to event hub
+        https://docs.microsoft.com/en-us/azure/api-management/api-management-howto-log-event-hubs#:~:text=%20How%20to%20log%20events%20to%20Azure%20Event,Once%20your%20logger%20is%20configured%20in...%20More%20
+        <log-to-eventhub logger-id="logger-id">
+            @{
+                return context.Variables.GetValueOrDefault<string>("ApimTraceInsights");
+            }
+        </log-to-eventhub>
+        -->
+        
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
